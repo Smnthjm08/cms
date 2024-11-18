@@ -7,7 +7,7 @@ import { Providers } from './providers';
 import { GoogleAnalytics } from '@/components/analytics/GoogleAnalytics';
 import { siteConfig } from '@/config/site-config';
 import { Toaster } from 'sonner';
-import { Navbar } from '@/components/Navbar';
+// import { Navbar } from '@/components/Navbar';
 import NextTopLoader from 'nextjs-toploader';
 import OfflineNotification from '@/components/OfflineNavigator';
 
@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           showSpinner={false}
         />
         <Providers>
-          <Navbar />
+          {/* <Navbar /> */}
           <OfflineNotification />
           {children}
           <Toaster richColors />

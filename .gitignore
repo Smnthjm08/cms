@@ -47,4 +47,5 @@ next-env.d.ts
 
 # ignore yarn.lock & package-lock
 yarn.lock
-package-lock.json
+package-lock.json# Environment configuration
+**/.env
