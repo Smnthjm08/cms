@@ -13,12 +13,17 @@ interface RequestWithUser extends NextRequest {
   };
 }
 
-export const verifyJWT = async (token: string): Promise<JWTPayload | null> => {
+export const verifyJWT = async (token: string, currentIpAddress: string): Promise<JWTPayload | null> => {
   const secret = process.env.JWT_SECRET || '';
 
   try {
     const jwk = await importJWK({ k: secret, alg: 'HS256', kty: 'oct' });
     const { payload } = await jwtVerify(token, jwk);
+
+    if (payload.ipAddress !== currentIpAddress) {
+      console.error('IP mismatch: Token IP does not match current IP');
+      return null;
+    }
 
     return payload;
   } catch (error) {
@@ -57,12 +62,22 @@ export const withMobileAuth = async (req: RequestWithUser) => {
 
 export default withAuth(async (req) => {
   if (process.env.LOCAL_CMS_PROVIDER) return;
+
   const token = req.nextauth.token;
+  const currentIpAddress = req.headers.get('x-forwarded-for') || req.ip;
+
   if (!token) {
     return NextResponse.redirect(new URL('/invalidsession', req.url));
   }
+
+  // @ts-ignore
+  const payload = await verifyJWT(token.jwtToken, currentIpAddress);
+  if (!payload) {
+    return NextResponse.redirect(new URL('/invalidsession', req.url));
+  }
+
   const user = await fetch(
-    `${process.env.NEXT_PUBLIC_BASE_URL_LOCAL}/api/user?token=${token.jwtToken}`,
+    `${process.env.NEXT_PUBLIC_BASE_URL_LOCAL}/api/user?token=${token.jwtToken}`
   );
 
   const json = await user.json();

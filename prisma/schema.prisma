@@ -131,10 +131,12 @@ model VideoMetadata {
   @@unique([contentId])
 }
 
+//schema.prisma
 model Session {
   id           String   @id @default(cuid())
   sessionToken String   @unique
   userId       String
+  ipAddress    String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -143,6 +145,7 @@ model User {
   id                String             @id @default(cuid())
   name              String?
   email             String?            @unique
+  ipAddress         String?
   token             String?
   sessions          Session[]
   purchases         UserPurchases[]

@@ -20,6 +20,7 @@ export interface session extends Session {
   user: {
     id: string;
     jwtToken: string;
+    ip: string;
     role: string;
     email: string;
     name: string;
@@ -38,12 +39,12 @@ interface user {
   token: string;
 }
 
-const generateJWT = async (payload: JWTPayload) => {
+const generateJWT = async (payload: JWTPayload, ipAddress: string) => {
   const secret = process.env.JWT_SECRET || 'secret';
 
   const jwk = await importJWK({ k: secret, alg: 'HS256', kty: 'oct' });
 
-  const jwt = await new SignJWT(payload)
+  const jwt = await new SignJWT({ ...payload, ipAddress })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('365d')
@@ -57,12 +58,12 @@ async function validateUser(
 ): Promise<
   | { data: null }
   | {
-    data: {
-      name: string;
-      userid: string;
-      token: string;
-    };
-  }
+      data: {
+        name: string;
+        userid: string;
+        token: string;
+      };
+    }
 > {
   if (process.env.LOCAL_CMS_PROVIDER) {
     if (password === '123456') {
@@ -115,16 +116,21 @@ export const authOptions = {
         username: { label: 'email', type: 'text', placeholder: '' },
         password: { label: 'password', type: 'password', placeholder: '' },
       },
-      async authorize(credentials: any) {
+      async authorize(credentials: any, req: any) {
         try {
+          const ipAddress = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+          console.log(">>>>>", ipAddress);
           if (process.env.LOCAL_CMS_PROVIDER) {
             return {
               id: '1',
               name: 'test',
               email: 'test@gmail.com',
-              token: await generateJWT({
-                id: '1',
-              }),
+              token: await generateJWT(
+                {
+                  id: '1',
+                },
+                ipAddress,
+              ),
             };
           }
           const hashedPassword = await bcrypt.hash(credentials.password, 10);
@@ -146,9 +152,12 @@ export const authOptions = {
             (await bcrypt.compare(credentials.password, userDb.password)) &&
             userDb?.appxAuthToken
           ) {
-            const jwt = await generateJWT({
-              id: userDb.id,
-            });
+            const jwt = await generateJWT(
+              {
+                id: userDb.id,
+              },
+              ipAddress,
+            );
             await db.user.update({
               where: {
                 id: userDb.id,
@@ -171,9 +180,12 @@ export const authOptions = {
             credentials.password,
           );
 
-          const jwt = await generateJWT({
-            id: user.data?.userid,
-          });
+          const jwt = await generateJWT(
+            {
+              id: user.data?.userid,
+            },
+            ipAddress,
+          );
 
           if (user.data) {
             try {
@@ -188,6 +200,7 @@ export const authOptions = {
                   token: jwt,
                   password: hashedPassword,
                   appxAuthToken: user.data.token,
+                  ipAddress: ipAddress,
                 },
                 update: {
                   id: user.data.userid,
@@ -196,6 +209,7 @@ export const authOptions = {
                   token: jwt,
                   password: hashedPassword,
                   appxAuthToken: user.data.token,
+                  ipAddress: ipAddress,
                 },
               });
             } catch (e) {
@@ -226,6 +240,7 @@ export const authOptions = {
       if (newSession.user && token.uid) {
         newSession.user.id = token.uid as string;
         newSession.user.jwtToken = token.jwtToken as string;
+        newSession.user.ipAddress = token.ipAddress as string; // Add this
         newSession.user.role = process.env.ADMINS?.split(',').includes(
           session.user?.email ?? '',
         )
@@ -240,6 +255,7 @@ export const authOptions = {
       if (user) {
         newToken.uid = user.id;
         newToken.jwtToken = (user as user).token;
+        newToken.ipAddress = (user as any).ipAddress; 
       }
       return newToken;
     },
