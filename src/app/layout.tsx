@@ -38,7 +38,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           showSpinner={false}
         />
         <Providers>
-          <Navbar />
+          {/* <Navbar /> */}
           <OfflineNotification />
           {children}
           <Toaster richColors />
